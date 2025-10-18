@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Virtual High-Five</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100vh; margin: 0;
+      background: linear-gradient(135deg,#ffcb57,#ff7b7b);
+      color: #fff;
+    }
+    button {
+      font-size: 2rem; padding: 1rem 2rem;
+      border: none; border-radius: 20px;
+      background: #fff; color: #ff5b5b;
+      cursor: pointer; transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.9); }
+    #status { margin-top: 1.5rem; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <h1>🙌 Virtual High-Five!</h1>
+  <button id="highfive">High Five!</button>
+  <div id="status">Waiting for friends…</div>
+  <audio id="sound" src="highfive.mp3" preload="auto"></audio>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+  <script>
+    // 1️⃣ Replace this with your own Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGdiYZ4BAN-BZE4Pom6AAMxbBFQ7F1kmU",
+  authDomain: "highfive-f5336.firebaseapp.com",
+  databaseURL: "https://highfive-f5336-default-rtdb.firebaseio.com",
+  projectId: "highfive-f5336",
+  storageBucket: "highfive-f5336.firebasestorage.app",
+  messagingSenderId: "71557961153",
+  appId: "1:71557961153:web:7c0bf540823afe397bcb40",
+  measurementId: "G-TSEM004C0Y"
+    };
+
+    // 2️⃣ Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const pressesRef = db.ref("presses");
+
+    const button = document.getElementById("highfive");
+    const status = document.getElementById("status");
+    const sound = document.getElementById("sound");
+
+    // 3️⃣ When you press the button
+    button.onclick = () => {
+      const now = Date.now();
+      pressesRef.push({ time: now });
+      status.textContent = "You reached out for a high-five!";
+    };
+
+    // 4️⃣ Listen for recent presses
+    pressesRef.limitToLast(10).on("value", snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
+      const times = Object.values(data).map(d => d.time);
+      const now = Date.now();
+      const recent = times.filter(t => now - t < 500); // within 0.5 sec
+      if (recent.length >= 2) {
+        sound.play();
+        status.textContent = "👏 High-Five! " + recent.length + " people joined!";
+        // Clear old entries every few seconds
+        pressesRef.once("value", s => {
+          s.forEach(child => {
+            if (now - child.val().time > 3000) child.ref.remove();
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>
