@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual High Five</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #ffcc70, #c850c0);
+      margin: 0;
+      flex-direction: column;
+    }
+    h1 {
+      color: white;
+      font-size: 3rem;
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    button {
+      font-size: 2rem;
+      padding: 20px 40px;
+      border: none;
+      border-radius: 12px;
+      background-color: #fff;
+      color: #c850c0;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 1.5rem;
+      color: white;
+      text-shadow: 1px 1px 2px black;
+    }
+  </style>
+</head>
+<body>
+  <h1>✋ Virtual High Five</h1>
+  <button id="highfive">High Five!</button>
+  <div id="status">Waiting for a friend to high five…</div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // 🔹 Replace with YOUR Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGdiYZ4BAN-BZE4Pom6AAMxbBFQ7F1kmU",
+  authDomain: "highfive-f5336.firebaseapp.com",
+  databaseURL: "https://highfive-f5336-default-rtdb.firebaseio.com/",
+  projectId: "highfive-f5336",
+  storageBucket: "highfive-f5336.firebasestorage.app",
+  messagingSenderId: "71557961153",
+  appId: "1:71557961153:web:7c0bf540823afe397bcb40",
+  measurementId: "G-TSEM004C0Y"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🔹 Unique ID per browser session
+    const userId = "user-" + Math.random().toString(36).substring(2, 10);
+
+    const btn = document.getElementById("highfive");
+    const sound = new Audio("highfive.mp3");
+    const statusDiv = document.getElementById("status");
+
+    // 🔹 Unlock audio for desktop browsers
+    window.addEventListener('click', () => {
+      sound.play().catch(() => {});
+      sound.pause();
+    }, { once: true });
+
+    // 🔹 Button click
+    btn.addEventListener("click", () => {
+      const pressesRef = ref(db, "presses");
+      push(pressesRef, { userId, time: Date.now() });
+
+      // Update status for this user
+      statusDiv.textContent = "Someone is waiting for a high five!";
+      setTimeout(() => {
+        statusDiv.textContent = "Waiting for a friend to high five…";
+      }, 3000);
+    });
+
+    // 🔹 Listen for presses from all users
+    onValue(ref(db, "presses"), (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const now = Date.now();
+      const recentPresses = Object.values(data).filter(p => now - p.time < 2000);
+      const uniqueUsers = new Set(recentPresses.map(p => p.userId));
+
+      // Update status if someone else clicked
+      if (recentPresses.length > 0) {
+        statusDiv.textContent = "Someone is waiting for a high five!";
+      } else {
+        statusDiv.textContent = "Waiting for a friend to high five…";
+      }
+
+      // Play sound only if 2+ different users pressed
+      if (uniqueUsers.size >= 2) {
+        sound.play();
+      }
+
+      // Clean up old presses
+      Object.entries(data).forEach(([key, p]) => {
+        if (now - p.time > 3000) {
+          remove(ref(db, "presses/" + key));
+        }
+      });
+    });
+  </script>
+</body>
+</html>
